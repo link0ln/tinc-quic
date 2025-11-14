@@ -17,8 +17,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build
 
-# Copy MsQuic submodule
-COPY msquic /build/msquic
+# Clone MsQuic directly (more reliable than depending on submodule state)
+# Using specific version tag for reproducibility
+RUN git clone --depth 1 --branch v2.4.3 https://github.com/microsoft/msquic.git && \
+    cd msquic && \
+    git submodule update --init --recursive --depth 1
 
 # Build MsQuic
 # Note: Building only Release configuration for smaller size
