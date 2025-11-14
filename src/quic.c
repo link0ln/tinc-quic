@@ -187,6 +187,9 @@ QUIC_STATUS quic_listener_callback(HQUIC listener, void *context, QUIC_LISTENER_
 		/* Create new tinc connection object */
 		connection_t *c = new_connection();
 
+		/* Initialize connection with timestamp */
+		c->last_ping_time = time(NULL);
+
 		/* Create QUIC connection context */
 		quic_connection_t *qc = xzalloc(sizeof(quic_connection_t));
 		qc->connection = event->NEW_CONNECTION.Connection;
@@ -216,6 +219,11 @@ QUIC_STATUS quic_listener_callback(HQUIC listener, void *context, QUIC_LISTENER_
 			free_connection(c);
 			return QUIC_STATUS_INTERNAL_ERROR;
 		}
+
+		/* Add connection to global connection list */
+		connection_add(c);
+
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "Accepted QUIC connection (will get peer info on CONNECTED event)");
 
 		return QUIC_STATUS_SUCCESS;
 	}
@@ -511,21 +519,37 @@ bool quic_connection_start(connection_t *c) {
 
 	quic_connection_t *qc = (quic_connection_t *)c->quic_context;
 
-	/* Parse address */
-	QUIC_ADDR addr = {0};
-	QuicAddrSetFamily(&addr, QUIC_ADDRESS_FAMILY_INET);
+	/* Extract port from sockaddr_t */
+	uint16_t port = 655; /* default tinc port */
 
-	// TODO: Convert c->address to QUIC_ADDR format
-	// For now, use placeholder
-	QuicAddrSetPort(&addr, c->port ? c->port : 655);
+	if(c->port) {
+		port = c->port;
+	} else if(c->address.sa.sa_family == AF_INET) {
+		port = ntohs(c->address.in.sin_port);
+	} else if(c->address.sa.sa_family == AF_INET6) {
+		port = ntohs(c->address.in6.sin6_port);
+	}
 
-	/* Start connection */
+	if(port == 0) {
+		port = 655; /* fallback to default */
+	}
+
+	/* Determine address family for ConnectionStart */
+	int address_family = QUIC_ADDRESS_FAMILY_UNSPEC;
+
+	if(c->address.sa.sa_family == AF_INET) {
+		address_family = QUIC_ADDRESS_FAMILY_INET;
+	} else if(c->address.sa.sa_family == AF_INET6) {
+		address_family = QUIC_ADDRESS_FAMILY_INET6;
+	}
+
+	/* Start connection - MsQuic will resolve hostname to IP */
 	QUIC_STATUS status = quic_state.api->ConnectionStart(
 	                         qc->connection,
 	                         quic_state.configuration,
-	                         QUIC_ADDRESS_FAMILY_UNSPEC,
+	                         address_family,
 	                         c->hostname ? c->hostname : c->name,
-	                         QuicAddrGetPort(&addr)
+	                         port
 	                     );
 
 	if(QUIC_FAILED(status)) {
