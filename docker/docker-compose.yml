@@ -1,0 +1,103 @@
+services:
+  # Node 1 - VLESS Server with Reality (in both networks - acts as router)
+  node1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: tinc-node1
+    hostname: node1
+    networks:
+      network_12:
+        ipv4_address: 172.25.1.10
+      network_13:
+        ipv4_address: 172.25.2.10
+    volumes:
+      - ./node1/tinc:/etc/tinc/testvpn
+      - ./node1/logs:/var/log/tinc
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      - NODE_NAME=node1
+      - TINC_NETWORK=testvpn
+      - VLESS_MODE=yes
+      - REALITY_MODE=yes
+    ports:
+      - "6551:443"
+    stdin_open: true
+    tty: true
+
+  # Node 2 - VLESS Client connecting to Node1 (only in network_12)
+  node2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: tinc-node2
+    hostname: node2
+    networks:
+      network_12:
+        ipv4_address: 172.25.1.11
+    volumes:
+      - ./node2/tinc:/etc/tinc/testvpn
+      - ./node2/logs:/var/log/tinc
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      - NODE_NAME=node2
+      - TINC_NETWORK=testvpn
+      - VLESS_MODE=yes
+      - REALITY_MODE=yes
+    ports:
+      - "6552:443"
+    depends_on:
+      - node1
+    stdin_open: true
+    tty: true
+
+  # Node 3 - VLESS Client connecting to Node1 (only in network_13)
+  node3:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: tinc-node3
+    hostname: node3
+    networks:
+      network_13:
+        ipv4_address: 172.25.2.12
+    volumes:
+      - ./node3/tinc:/etc/tinc/testvpn
+      - ./node3/logs:/var/log/tinc
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      - NODE_NAME=node3
+      - TINC_NETWORK=testvpn
+      - VLESS_MODE=yes
+      - REALITY_MODE=yes
+    ports:
+      - "6553:443"
+    depends_on:
+      - node1
+      - node2
+    stdin_open: true
+    tty: true
+
+networks:
+  # Network for node1 and node2 only
+  network_12:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.1.0/24
+
+  # Network for node1 and node3 only
+  network_13:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.2.0/24

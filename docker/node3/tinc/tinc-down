@@ -1,0 +1,5 @@
+#!/bin/sh
+ip route del 10.0.0.0/24 dev $INTERFACE
+ip addr del 10.0.0.3/24 dev $INTERFACE
+ip link set $INTERFACE down
+echo "Node3 VPN interface down"
