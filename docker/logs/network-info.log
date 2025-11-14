@@ -1,0 +1,15 @@
+==========================================
+Network Information - Пт 14 ноя 2025 15:20:40 UTC
+==========================================
+
+=== Node1 Network Configuration ===
+Error response from daemon: No such container: tinc-node1
+Node1 not accessible
+
+=== Node2 Network Configuration ===
+Error response from daemon: No such container: tinc-node2
+Node2 not accessible
+
+=== Node3 Network Configuration ===
+Error response from daemon: No such container: tinc-node3
+Node3 not accessible
