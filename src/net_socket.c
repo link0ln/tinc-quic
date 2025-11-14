@@ -33,6 +33,7 @@
 #include "net.h"
 #include "netutl.h"
 #include "protocol.h"
+#include "quic.h"
 #include "utils.h"
 #include "xalloc.h"
 
@@ -541,6 +542,47 @@ begin:
 	c->hostname = sockaddr2hostname(&c->address);
 
 	logger(DEBUG_CONNECTIONS, LOG_INFO, "Trying to connect to %s (%s)", outgoing->node->name, c->hostname);
+
+#ifdef HAVE_MSQUIC
+	/* Try QUIC connection first */
+	if(!proxytype) {
+		/* Extract port from sockaddr */
+		uint16_t port = 655; /* default */
+		if(sa->sa.sa_family == AF_INET) {
+			port = ntohs(sa->in.sin_port);
+		} else if(sa->sa.sa_family == AF_INET6) {
+			port = ntohs(sa->in6.sin6_port);
+		}
+
+		c->port = port;
+
+		/* Open QUIC connection */
+		if(quic_connection_open(c, c->hostname, port)) {
+			/* Start QUIC connection */
+			if(quic_connection_start(c)) {
+				/* Fill in connection details */
+				c->last_ping_time = time(NULL);
+				c->status.connecting = true;
+				c->name = xstrdup(outgoing->node->name);
+				c->outmaclength = myself->connection->outmaclength;
+				c->outcompression = myself->connection->outcompression;
+				c->last_ping_time = now.tv_sec;
+
+				connection_add(c);
+
+				logger(DEBUG_CONNECTIONS, LOG_INFO, "Using QUIC connection to %s (%s)", outgoing->node->name, c->hostname);
+				return true;
+			} else {
+				logger(DEBUG_CONNECTIONS, LOG_WARNING, "QUIC connection start failed to %s, falling back to TCP", outgoing->node->name);
+				quic_connection_close(c);
+			}
+		} else {
+			logger(DEBUG_CONNECTIONS, LOG_WARNING, "QUIC connection open failed to %s, falling back to TCP", outgoing->node->name);
+		}
+	}
+#endif
+
+	/* Fallback to TCP connection */
 
 	if(!proxytype) {
 		c->socket = socket(c->address.sa.sa_family, SOCK_STREAM, IPPROTO_TCP);

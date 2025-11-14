@@ -27,6 +27,7 @@
 #include "meta.h"
 #include "net.h"
 #include "protocol.h"
+#include "quic.h"
 #include "utils.h"
 #include "xalloc.h"
 
@@ -60,6 +61,14 @@ bool send_meta(connection_t *c, const char *buffer, size_t length) {
 	logger(DEBUG_META, LOG_DEBUG, "Sending %lu bytes of metadata to %s (%s)", (unsigned long)length,
 	       c->name, c->hostname);
 
+#ifdef HAVE_MSQUIC
+	/* Use QUIC if available */
+	if(c->quic_context) {
+		return quic_send_meta(c, buffer, length);
+	}
+#endif
+
+	/* Fallback to TCP/SPTPS */
 	if(c->protocol_minor >= 2) {
 		return sptps_send_record(&c->sptps, 0, buffer, length);
 	}
@@ -164,6 +173,31 @@ bool receive_meta(connection_t *c) {
 	ssize_t inlen;
 	char inbuf[MAXBUFSIZE];
 	char *bufp = inbuf, *endp;
+
+#ifdef HAVE_MSQUIC
+	/* QUIC connections receive data via callbacks, not recv() */
+	if(c->quic_context) {
+		/* Data is already in c->inbuf from QUIC stream callback */
+		/* Just process buffered requests */
+		while(c->inbuf.len) {
+			char *request = buffer_readline(&c->inbuf);
+
+			if(request) {
+				bool result = receive_request(c, request);
+
+				if(!result) {
+					return false;
+				}
+
+				continue;
+			} else {
+				break;
+			}
+		}
+
+		return true;
+	}
+#endif
 
 	/* Strategy:
 	   - Read as much as possible from the TCP socket in one go.

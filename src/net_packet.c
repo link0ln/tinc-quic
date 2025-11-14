@@ -46,6 +46,7 @@
 #include "net.h"
 #include "netutl.h"
 #include "protocol.h"
+#include "quic.h"
 #include "route.h"
 #include "utils.h"
 #include "xalloc.h"
@@ -576,6 +577,17 @@ static void send_sptps_packet(node_t *n, vpn_packet_t *origpkt) {
 		return;
 	}
 
+#ifdef HAVE_MSQUIC
+	/* Use QUIC datagram if available */
+	if(n->connection && n->connection->quic_context) {
+		if(quic_send_packet(n->connection, origpkt)) {
+			return;
+		}
+		/* Fallback to UDP if QUIC fails */
+		logger(DEBUG_TRAFFIC, LOG_WARNING, "QUIC datagram send failed to %s, falling back to UDP", n->name);
+	}
+#endif
+
 	uint8_t type = 0;
 	int offset = 0;
 
@@ -705,6 +717,17 @@ static void send_udppacket(node_t *n, vpn_packet_t *origpkt) {
 		logger(DEBUG_TRAFFIC, LOG_INFO, "Trying to send UDP packet to unreachable node %s (%s)", n->name, n->hostname);
 		return;
 	}
+
+#ifdef HAVE_MSQUIC
+	/* Use QUIC datagram if available */
+	if(n->connection && n->connection->quic_context) {
+		if(quic_send_packet(n->connection, origpkt)) {
+			return;
+		}
+		/* Fallback to UDP if QUIC fails */
+		logger(DEBUG_TRAFFIC, LOG_WARNING, "QUIC datagram send failed to %s, falling back to UDP", n->name);
+	}
+#endif
 
 	if(n->status.sptps) {
 		send_sptps_packet(n, origpkt);

@@ -24,8 +24,10 @@
 #include <msquic.h>
 
 #include "quic.h"
+#include "buffer.h"
 #include "connection.h"
 #include "logger.h"
+#include "meta.h"
 #include "net.h"
 #include "netutl.h"
 #include "protocol.h"
@@ -419,32 +421,19 @@ QUIC_STATUS quic_stream_callback(HQUIC stream, void *context, QUIC_STREAM_EVENT 
 			uint32_t len = event->RECEIVE.Buffers[i].Length;
 			uint8_t *data = event->RECEIVE.Buffers[i].Buffer;
 
-			/* Append to connection input buffer */
-			if(!c->inbuf.data) {
-				c->inbuf.len = 0;
-				c->inbuf.offset = 0;
-			}
-
-			/* Process metadata */
-			char *buf = (char *)data;
-
-			for(uint32_t j = 0; j < len; j++) {
-				if(buf[j] == '\n') {
-					/* Process complete line */
-					if(!receive_request(c)) {
-						logger(DEBUG_ALWAYS, LOG_ERR, "Error processing metadata request");
-						return QUIC_STATUS_INVALID_STATE;
-					}
-				} else {
-					/* Buffer incomplete data */
-					// TODO: implement proper buffering
-				}
-			}
-
+			/* Add received data to connection input buffer */
+			buffer_add(&c->inbuf, (const char *)data, len);
 			total_len += len;
 		}
 
 		logger(DEBUG_META, LOG_DEBUG, "Received %u bytes of metadata via QUIC stream", total_len);
+
+		/* Process buffered metadata requests */
+		if(!receive_meta(c)) {
+			logger(DEBUG_ALWAYS, LOG_ERR, "Error processing metadata from QUIC stream");
+			return QUIC_STATUS_INVALID_STATE;
+		}
+
 		return QUIC_STATUS_SUCCESS;
 	}
 

@@ -28,6 +28,7 @@
 #include "list.h"
 #include "logger.h"
 #include "net.h"
+#include "quic.h"
 #include "rsa.h"
 #include "subnet.h"
 #include "utils.h"
@@ -56,6 +57,13 @@ void free_connection(connection_t *c) {
 	if(!c) {
 		return;
 	}
+
+#ifdef HAVE_MSQUIC
+	/* Close QUIC connection if exists */
+	if(c->quic_context) {
+		quic_connection_close(c);
+	}
+#endif
 
 #ifndef DISABLE_LEGACY
 	cipher_close(c->incipher);
