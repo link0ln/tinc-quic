@@ -36,6 +36,7 @@
 #include "netutl.h"
 #include "process.h"
 #include "protocol.h"
+#include "quic.h"
 #include "route.h"
 #include "rsa.h"
 #include "script.h"
@@ -1247,6 +1248,28 @@ bool setup_network(void) {
 		return false;
 	}
 
+#ifdef HAVE_MSQUIC
+	/* Initialize QUIC */
+	uint16_t quic_port = 655; // Default tinc port
+	char *portstr = myport;
+	if(portstr) {
+		quic_port = atoi(portstr);
+	}
+
+	if(!quic_init(quic_port)) {
+		logger(DEBUG_ALWAYS, LOG_ERR, "Failed to initialize QUIC");
+		return false;
+	}
+
+	if(!quic_start_listener(quic_port)) {
+		logger(DEBUG_ALWAYS, LOG_ERR, "Failed to start QUIC listener");
+		quic_cleanup();
+		return false;
+	}
+
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC transport layer initialized");
+#endif
+
 	if(!init_control()) {
 		return false;
 	}
@@ -1266,6 +1289,12 @@ bool setup_network(void) {
   close all open network connections
 */
 void close_network_connections(void) {
+#ifdef HAVE_MSQUIC
+	/* Cleanup QUIC */
+	quic_cleanup();
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC transport layer shut down");
+#endif
+
 	for(list_node_t *node = connection_list->head, *next; node; node = next) {
 		next = node->next;
 		connection_t *c = node->data;

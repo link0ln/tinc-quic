@@ -236,6 +236,28 @@ tinc_READLINE
 tinc_ZLIB
 tinc_LZO
 
+dnl Check for MsQuic library
+AC_ARG_WITH(msquic,
+  AS_HELP_STRING([--with-msquic@<:@=DIR@:>@], [use MsQuic library @<:@default=yes@:>@]),
+  [with_msquic=$withval],
+  [with_msquic=yes]
+)
+
+AS_IF([test "x$with_msquic" != "xno"],
+  [AC_MSG_CHECKING([for MsQuic])
+   MSQUIC_CFLAGS="-I\$(top_srcdir)/msquic/src/inc"
+   MSQUIC_LIBS="-L\$(top_builddir)/msquic/build/bin/Release -lmsquic"
+   AC_SUBST(MSQUIC_CFLAGS)
+   AC_SUBST(MSQUIC_LIBS)
+   AC_DEFINE(HAVE_MSQUIC, 1, [MsQuic support enabled])
+   AC_MSG_RESULT([yes])
+   msquic=true
+  ],
+  [AC_MSG_ERROR([MsQuic is required for this version of tinc])]
+)
+
+AM_CONDITIONAL(MSQUIC, test "x$msquic" = "xtrue")
+
 AS_IF([test "x$enable_legacy_protocol" != "xno"],
       [AS_IF([test -n "$with_libgcrypt"],
 	     [gcrypt=true; tinc_LIBGCRYPT],

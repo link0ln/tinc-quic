@@ -86,6 +86,7 @@ tincd_SOURCES = \
 	protocol_key.c \
 	protocol_misc.c \
 	protocol_subnet.c \
+	quic.c quic.h \
 	raw_socket_device.c \
 	route.c route.h \
 	rsa.h \
@@ -279,6 +280,11 @@ LIBS = @LIBS@ -lm $(CODE_COVERAGE_LIBS)
 
 if TUNEMU
 LIBS += -lpcap
+endif
+
+if MSQUIC
+tincd_LDADD += @MSQUIC_LIBS@
+AM_CFLAGS += @MSQUIC_CFLAGS@
 endif
 
 AM_CFLAGS = -DCONFDIR=\"$(sysconfdir)\" -DRUNSTATEDIR=\"$(runstatedir)\" -DLOCALSTATEDIR=\"$(localstatedir)\" -DSBINDIR=\"$(sbindir)\" -iquote. $(CODE_COVERAGE_CFLAGS)

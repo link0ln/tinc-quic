@@ -107,6 +107,10 @@ typedef struct connection_t {
 	time_t last_ping_time;          /* last time we saw some activity from the other end or pinged them */
 
 	splay_tree_t *config_tree;      /* Pointer to configuration tree belonging to him */
+
+	/* QUIC support */
+	void *quic_context;             /* QUIC connection context (quic_connection_t*) */
+	uint16_t port;                  /* Remote port for QUIC connection */
 } connection_t;
 
 extern list_t *connection_list;
