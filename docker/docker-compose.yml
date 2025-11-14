@@ -1,5 +1,5 @@
 services:
-  # Node 1 - VLESS Server with Reality (in both networks - acts as router)
+  # Node 1 - Main tinc node (in both networks - acts as router)
   node1:
     build:
       context: ..
@@ -21,14 +21,14 @@ services:
     environment:
       - NODE_NAME=node1
       - TINC_NETWORK=testvpn
-      - VLESS_MODE=yes
-      - REALITY_MODE=yes
+      - QUIC_ENABLED=yes
     ports:
-      - "6551:443"
+      - "6551:655"    # Tinc port
+      - "4433:4433"   # QUIC port
     stdin_open: true
     tty: true
 
-  # Node 2 - VLESS Client connecting to Node1 (only in network_12)
+  # Node 2 - Tinc client connecting to Node1 (only in network_12)
   node2:
     build:
       context: ..
@@ -48,16 +48,16 @@ services:
     environment:
       - NODE_NAME=node2
       - TINC_NETWORK=testvpn
-      - VLESS_MODE=yes
-      - REALITY_MODE=yes
+      - QUIC_ENABLED=yes
     ports:
-      - "6552:443"
+      - "6552:655"
+      - "4434:4433"
     depends_on:
       - node1
     stdin_open: true
     tty: true
 
-  # Node 3 - VLESS Client connecting to Node1 (only in network_13)
+  # Node 3 - Tinc client connecting to Node1 (only in network_13)
   node3:
     build:
       context: ..
@@ -77,10 +77,10 @@ services:
     environment:
       - NODE_NAME=node3
       - TINC_NETWORK=testvpn
-      - VLESS_MODE=yes
-      - REALITY_MODE=yes
+      - QUIC_ENABLED=yes
     ports:
-      - "6553:443"
+      - "6553:655"
+      - "4435:4433"
     depends_on:
       - node1
       - node2
