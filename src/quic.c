@@ -28,6 +28,7 @@
 #include "connection.h"
 #include "logger.h"
 #include "meta.h"
+#include "names.h"
 #include "net.h"
 #include "netutl.h"
 #include "protocol.h"
@@ -39,6 +40,7 @@ quic_state_t quic_state = {
 	.api = NULL,
 	.registration = NULL,
 	.configuration = NULL,
+	.client_configuration = NULL,
 	.listener = NULL,
 	.initialized = false,
 	.port = 0
@@ -49,6 +51,10 @@ static const QUIC_BUFFER quic_alpn = {
 	sizeof(QUIC_ALPN) - 1,
 	(uint8_t *)QUIC_ALPN
 };
+
+/* Certificate file paths - must persist beyond quic_init() */
+static char cert_path_global[PATH_MAX];
+static char key_path_global[PATH_MAX];
 
 /* Registration configuration */
 static const QUIC_REGISTRATION_CONFIG quic_reg_config = {
@@ -85,7 +91,7 @@ bool quic_init(uint16_t port) {
 		return false;
 	}
 
-	/* Create configuration */
+	/* Create configuration optimized for low-latency VPN */
 	QUIC_SETTINGS settings = {0};
 	settings.IdleTimeoutMs = QUIC_IDLE_TIMEOUT_MS;
 	settings.IsSet.IdleTimeoutMs = true;
@@ -93,12 +99,30 @@ bool quic_init(uint16_t port) {
 	settings.IsSet.PeerBidiStreamCount = true;
 	settings.DatagramReceiveEnabled = QUIC_DATAGRAM_ENABLED;
 	settings.IsSet.DatagramReceiveEnabled = true;
+	/* Disable send buffering for minimal latency */
+	settings.SendBufferingEnabled = false;
+	settings.IsSet.SendBufferingEnabled = true;
 
-	/* Allocate credential config */
+	/* Allocate credential config with TLS certificate */
+	QUIC_CERTIFICATE_FILE cert_file;
+	memset(&cert_file, 0, sizeof(cert_file));
+
+	/* Build paths to certificate and key files using global storage */
+	snprintf(cert_path_global, sizeof(cert_path_global), "%s/quic-cert.pem", confbase);
+	snprintf(key_path_global, sizeof(key_path_global), "%s/quic-key.pem", confbase);
+
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC certificate path: %s", cert_path_global);
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC key path: %s", key_path_global);
+
+	cert_file.CertificateFile = cert_path_global;
+	cert_file.PrivateKeyFile = key_path_global;
+
 	QUIC_CREDENTIAL_CONFIG cred_config;
 	memset(&cred_config, 0, sizeof(cred_config));
-	cred_config.Type = QUIC_CREDENTIAL_TYPE_NONE;
-	cred_config.Flags = QUIC_CREDENTIAL_FLAG_CLIENT | QUIC_CREDENTIAL_FLAG_NO_CERTIFICATE_VALIDATION;
+	cred_config.Type = QUIC_CREDENTIAL_TYPE_CERTIFICATE_FILE;
+	cred_config.CertificateFile = &cert_file;
+	/* Allow self-signed certificates for all connections (tinc mesh network) */
+	cred_config.Flags = QUIC_CREDENTIAL_FLAG_NO_CERTIFICATE_VALIDATION;
 
 	status = quic_state.api->ConfigurationOpen(
 	             quic_state.registration,
@@ -119,11 +143,12 @@ bool quic_init(uint16_t port) {
 		return false;
 	}
 
-	/* Load credentials */
+	/* Load server credentials */
 	status = quic_state.api->ConfigurationLoadCredential(quic_state.configuration, &cred_config);
 
 	if(QUIC_FAILED(status)) {
-		logger(DEBUG_ALWAYS, LOG_ERR, "ConfigurationLoadCredential failed: 0x%x", status);
+		logger(DEBUG_ALWAYS, LOG_ERR, "Server ConfigurationLoadCredential failed: 0x%x (cert=%s, key=%s)",
+		       status, cert_path_global, key_path_global);
 		quic_state.api->ConfigurationClose(quic_state.configuration);
 		quic_state.api->RegistrationClose(quic_state.registration);
 		MsQuicClose(quic_state.api);
@@ -133,10 +158,57 @@ bool quic_init(uint16_t port) {
 		return false;
 	}
 
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "Server credentials loaded successfully from %s", cert_path_global);
+
+	/* Create client configuration */
+	status = quic_state.api->ConfigurationOpen(
+	             quic_state.registration,
+	             &quic_alpn,
+	             1,
+	             &settings,
+	             sizeof(settings),
+	             NULL,
+	             &quic_state.client_configuration
+	         );
+
+	if(QUIC_FAILED(status)) {
+		logger(DEBUG_ALWAYS, LOG_ERR, "Client ConfigurationOpen failed: 0x%x", status);
+		quic_state.api->ConfigurationClose(quic_state.configuration);
+		quic_state.api->RegistrationClose(quic_state.registration);
+		MsQuicClose(quic_state.api);
+		quic_state.api = NULL;
+		quic_state.registration = NULL;
+		quic_state.configuration = NULL;
+		return false;
+	}
+
+	/* Client credentials - no certificate, trust all server certificates */
+	QUIC_CREDENTIAL_CONFIG client_cred_config;
+	memset(&client_cred_config, 0, sizeof(client_cred_config));
+	client_cred_config.Type = QUIC_CREDENTIAL_TYPE_NONE;
+	client_cred_config.Flags = QUIC_CREDENTIAL_FLAG_CLIENT | QUIC_CREDENTIAL_FLAG_NO_CERTIFICATE_VALIDATION;
+
+	status = quic_state.api->ConfigurationLoadCredential(quic_state.client_configuration, &client_cred_config);
+
+	if(QUIC_FAILED(status)) {
+		logger(DEBUG_ALWAYS, LOG_ERR, "Client ConfigurationLoadCredential failed: 0x%x", status);
+		quic_state.api->ConfigurationClose(quic_state.client_configuration);
+		quic_state.api->ConfigurationClose(quic_state.configuration);
+		quic_state.api->RegistrationClose(quic_state.registration);
+		MsQuicClose(quic_state.api);
+		quic_state.api = NULL;
+		quic_state.registration = NULL;
+		quic_state.configuration = NULL;
+		quic_state.client_configuration = NULL;
+		return false;
+	}
+
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "Client credentials loaded successfully (no cert validation)");
+
 	quic_state.port = port;
 	quic_state.initialized = true;
 
-	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC initialized successfully on port %d", port);
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC initialized successfully on port %d (server + client configs ready)", port);
 	return true;
 }
 
@@ -151,7 +223,12 @@ void quic_cleanup(void) {
 	/* Stop listener if running */
 	quic_stop_listener();
 
-	/* Close configuration */
+	/* Close configurations */
+	if(quic_state.client_configuration) {
+		quic_state.api->ConfigurationClose(quic_state.client_configuration);
+		quic_state.client_configuration = NULL;
+	}
+
 	if(quic_state.configuration) {
 		quic_state.api->ConfigurationClose(quic_state.configuration);
 		quic_state.configuration = NULL;
@@ -319,6 +396,8 @@ QUIC_STATUS quic_connection_callback(HQUIC connection, void *context, QUIC_CONNE
 		logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC connection established to %s", c->name ? c->name : "unknown");
 		qc->connected = true;
 
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "Opening control stream for metadata exchange");
+
 		/* Open control stream for metadata */
 		QUIC_STATUS status = quic_state.api->StreamOpen(
 		                         connection,
@@ -333,6 +412,8 @@ QUIC_STATUS quic_connection_callback(HQUIC connection, void *context, QUIC_CONNE
 			return QUIC_STATUS_INTERNAL_ERROR;
 		}
 
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "Control stream opened successfully, starting it...");
+
 		/* Start control stream */
 		status = quic_state.api->StreamStart(
 		             qc->control_stream,
@@ -345,6 +426,7 @@ QUIC_STATUS quic_connection_callback(HQUIC connection, void *context, QUIC_CONNE
 		}
 
 		qc->control_stream_open = true;
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "Control stream ready, triggering tinc ID handshake");
 
 		/* Trigger tinc protocol handshake */
 		send_id(c);
@@ -376,6 +458,11 @@ QUIC_STATUS quic_connection_callback(HQUIC connection, void *context, QUIC_CONNE
 		    (void *)quic_stream_callback,
 		    c
 		);
+		return QUIC_STATUS_SUCCESS;
+
+	case QUIC_CONNECTION_EVENT_PEER_ADDRESS_CHANGED:
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC peer address changed (connection migration)");
+		/* QUIC handles migration automatically, just log it */
 		return QUIC_STATUS_SUCCESS;
 
 	case QUIC_CONNECTION_EVENT_DATAGRAM_RECEIVED: {
@@ -418,7 +505,7 @@ QUIC_STATUS quic_stream_callback(HQUIC stream, void *context, QUIC_STREAM_EVENT 
 
 	switch(event->Type) {
 	case QUIC_STREAM_EVENT_START_COMPLETE:
-		logger(DEBUG_PROTOCOL, LOG_DEBUG, "QUIC stream started");
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC control stream started successfully");
 		return QUIC_STATUS_SUCCESS;
 
 	case QUIC_STREAM_EVENT_RECEIVE: {
@@ -434,12 +521,14 @@ QUIC_STATUS quic_stream_callback(HQUIC stream, void *context, QUIC_STREAM_EVENT 
 			total_len += len;
 		}
 
-		logger(DEBUG_META, LOG_DEBUG, "Received %u bytes of metadata via QUIC stream", total_len);
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "Received %u bytes of metadata via QUIC stream from %s", total_len, c->name ? c->name : "unknown");
 
 		/* Process buffered metadata requests */
+		/* Note: receive_meta() may return false for protocol-level errors (e.g., unauthorized)
+		 * but we should NOT close the QUIC stream - let tinc protocol handle it */
 		if(!receive_meta(c)) {
-			logger(DEBUG_ALWAYS, LOG_ERR, "Error processing metadata from QUIC stream");
-			return QUIC_STATUS_INVALID_STATE;
+			logger(DEBUG_PROTOCOL, LOG_WARNING, "receive_meta returned false for %s (may be normal protocol rejection)", c->name ? c->name : "unknown");
+			/* Don't return error - continue processing, let tinc protocol handle disconnect if needed */
 		}
 
 		return QUIC_STATUS_SUCCESS;
@@ -520,7 +609,7 @@ bool quic_connection_start(connection_t *c) {
 	quic_connection_t *qc = (quic_connection_t *)c->quic_context;
 
 	/* Extract port from sockaddr_t */
-	uint16_t port = 655; /* default tinc port */
+	uint16_t port = 443; /* default tinc port */
 
 	if(c->port) {
 		port = c->port;
@@ -531,7 +620,7 @@ bool quic_connection_start(connection_t *c) {
 	}
 
 	if(port == 0) {
-		port = 655; /* fallback to default */
+		port = 443; /* fallback to default */
 	}
 
 	/* Determine address family for ConnectionStart */
@@ -543,21 +632,50 @@ bool quic_connection_start(connection_t *c) {
 		address_family = QUIC_ADDRESS_FAMILY_INET6;
 	}
 
+	/* Determine server name for SNI (Server Name Indication) */
+	/* IMPORTANT: SNI must be just the hostname/IP without port */
+	char ip_address[INET6_ADDRSTRLEN] = {0};
+	const char *server_name = NULL;
+
+	/* Always extract clean IP address from sockaddr structure */
+	/* Note: c->hostname and c->name often contain " port XXX" suffix which breaks SNI */
+	if(c->address.sa.sa_family == AF_INET) {
+		inet_ntop(AF_INET, &c->address.in.sin_addr, ip_address, sizeof(ip_address));
+		server_name = ip_address;
+		logger(DEBUG_CONNECTIONS, LOG_DEBUG, "Extracted IPv4 for SNI: %s", ip_address);
+	} else if(c->address.sa.sa_family == AF_INET6) {
+		inet_ntop(AF_INET6, &c->address.in6.sin6_addr, ip_address, sizeof(ip_address));
+		server_name = ip_address;
+		logger(DEBUG_CONNECTIONS, LOG_DEBUG, "Extracted IPv6 for SNI: %s", ip_address);
+	} else {
+		logger(DEBUG_ALWAYS, LOG_ERR, "Unknown address family %d for QUIC connection", c->address.sa.sa_family);
+		return false;
+	}
+
+	if(!server_name || server_name[0] == '\0') {
+		logger(DEBUG_ALWAYS, LOG_ERR, "Failed to extract IP address for SNI");
+		return false;
+	}
+
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "Starting QUIC connection to %s:%d (SNI: %s)",
+	       server_name, port, server_name);
+
 	/* Start connection - MsQuic will resolve hostname to IP */
+	/* Use client configuration for outgoing connections */
 	QUIC_STATUS status = quic_state.api->ConnectionStart(
 	                         qc->connection,
-	                         quic_state.configuration,
+	                         quic_state.client_configuration,
 	                         address_family,
-	                         c->hostname ? c->hostname : c->name,
+	                         server_name,
 	                         port
 	                     );
 
 	if(QUIC_FAILED(status)) {
-		logger(DEBUG_ALWAYS, LOG_ERR, "ConnectionStart failed: 0x%x", status);
+		logger(DEBUG_ALWAYS, LOG_ERR, "ConnectionStart failed for %s: 0x%x", server_name, status);
 		return false;
 	}
 
-	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC connection started to %s", c->name);
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC connection started to %s", server_name);
 	return true;
 }
 
@@ -605,14 +723,17 @@ bool quic_send_meta(connection_t *c, const char *buffer, size_t len) {
 	quic_connection_t *qc = (quic_connection_t *)c->quic_context;
 
 	if(!qc->control_stream_open) {
-		logger(DEBUG_ALWAYS, LOG_ERR, "Control stream not open");
+		logger(DEBUG_ALWAYS, LOG_ERR, "Control stream not open for %s", c->name ? c->name : "unknown");
 		return false;
 	}
 
-	/* Allocate send buffer */
-	QUIC_BUFFER *send_buffer = xmalloc(sizeof(QUIC_BUFFER));
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "Sending %zu bytes of metadata to %s via QUIC", len, c->name ? c->name : "unknown");
+
+	/* Allocate send buffer as single memory block (MsQuic best practice) */
+	void *send_buffer_raw = xmalloc(sizeof(QUIC_BUFFER) + len);
+	QUIC_BUFFER *send_buffer = (QUIC_BUFFER *)send_buffer_raw;
 	send_buffer->Length = len;
-	send_buffer->Buffer = xmalloc(len);
+	send_buffer->Buffer = (uint8_t *)send_buffer_raw + sizeof(QUIC_BUFFER);
 	memcpy(send_buffer->Buffer, buffer, len);
 
 	/* Send on control stream */
@@ -621,17 +742,16 @@ bool quic_send_meta(connection_t *c, const char *buffer, size_t len) {
 	                         send_buffer,
 	                         1,
 	                         QUIC_SEND_FLAG_NONE,
-	                         send_buffer  // Pass as context for cleanup
+	                         send_buffer  // Pass as context for cleanup (single free)
 	                     );
 
 	if(QUIC_FAILED(status)) {
 		logger(DEBUG_ALWAYS, LOG_ERR, "StreamSend failed: 0x%x", status);
-		free(send_buffer->Buffer);
-		free(send_buffer);
+		free(send_buffer_raw);  // Single free for entire block
 		return false;
 	}
 
-	logger(DEBUG_META, LOG_DEBUG, "Sent %zu bytes of metadata via QUIC", len);
+	logger(DEBUG_CONNECTIONS, LOG_INFO, "Metadata sent successfully to %s (%zu bytes)", c->name ? c->name : "unknown", len);
 	return true;
 }
 

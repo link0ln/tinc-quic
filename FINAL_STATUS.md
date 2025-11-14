@@ -103,13 +103,13 @@ bool do_outgoing_connection(outgoing_t *outgoing) {
 // src/quic.c:518
 // TODO: Convert c->address to QUIC_ADDR format
 // For now, use placeholder
-QuicAddrSetPort(&addr, c->port ? c->port : 655);
+QuicAddrSetPort(&addr, c->port ? c->port : 443);
 ```
 
 **Исправлено (src/quic.c:522-544):**
 ```c
 /* Extract port from sockaddr_t */
-uint16_t port = 655; /* default tinc port */
+uint16_t port = 443; /* default tinc port */
 
 if(c->port) {
     port = c->port;
@@ -120,7 +120,7 @@ if(c->port) {
 }
 
 if(port == 0) {
-    port = 655; /* fallback to default */
+    port = 443; /* fallback to default */
 }
 
 /* Determine address family for ConnectionStart */
@@ -350,14 +350,14 @@ connection_add(c);  // ✅ ИСПРАВЛЕНО!
 ```c
 // src/quic.c:518
 // TODO: Convert c->address to QUIC_ADDR format
-QuicAddrSetPort(&addr, c->port ? c->port : 655);
+QuicAddrSetPort(&addr, c->port ? c->port : 443);
 ```
 
 **Исправлено (commit fc9b8f5):**
 ```c
 // src/quic.c:522-544
 /* Extract port from sockaddr_t */
-uint16_t port = 655;
+uint16_t port = 443;
 if(c->port) {
     port = c->port;
 } else if(c->address.sa.sa_family == AF_INET) {
@@ -503,8 +503,8 @@ sudo ./src/tincd -n mynetwork -D -d5
 
 Смотреть в логах:
 ```
-QUIC initialized successfully on port 655
-Starting QUIC listener on port 655
+QUIC initialized successfully on port 443
+Starting QUIC listener on port 443
 QUIC listener started successfully
 New QUIC connection attempt
 Accepted QUIC connection

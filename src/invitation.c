@@ -1211,7 +1211,7 @@ int cmd_join(int argc, char *argv[]) {
 	}
 
 	if(!port || !*port) {
-		port = "655";
+		port = "443";
 	}
 
 	if(!b64decode(slash, hash, 24) || !b64decode(slash + 24, cookie, 24)) {

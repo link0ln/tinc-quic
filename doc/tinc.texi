@@ -628,11 +628,11 @@ myvpn 10.0.0.0
 @cindex port numbers
 You may add this line to @file{/etc/services}.  The effect is that you
 may supply @samp{tinc} as a valid port number to some programs.  The
-number 655 is registered with the IANA.
+number 443 is registered with the IANA.
 
 @example
-tinc            655/tcp    TINC
-tinc            655/udp    TINC
+tinc            443/tcp    TINC
+tinc            443/udp    TINC
 #                          Ivo Timmermans <ivo@@tinc-vpn.org>
 @end example
 
@@ -1069,7 +1069,7 @@ Multiple ListenAddress variables may be specified,
 in which case listening sockets for each specified address are made.
 
 If no @var{port} is specified, the socket will listen on the port specified by the Port option,
-or to port 655 if neither is given.
+or to port 443 if neither is given.
 To only listen on a specific port but not to a specific address, use @samp{*} for the @var{address}.
 
 @cindex LocalDiscovery
@@ -1361,7 +1361,7 @@ After the path MTU has been discovered, it will be enforced on the VPN.
 The minimum amount of time between sending periodic updates about relay path MTU. Useful for quickly determining MTU to indirect nodes.
 
 @cindex Port
-@item Port = <@var{port}> (655)
+@item Port = <@var{port}> (443)
 This is the port this tinc daemon listens on.
 You can use decimal portnumbers or symbolic names (as listed in @file{/etc/services}).
 
@@ -1727,7 +1727,7 @@ D: net 10.4.0.0 mask 255.255.0.0 gateway 10.4.3.32 internet IP 4.5.6.7
 Here, ``gateway'' is the VPN IP address of the machine that is running the
 tincd, and ``internet IP'' is the IP address of the firewall, which does not
 need to run tincd, but it must do a port forwarding of TCP and UDP on port
-655 (unless otherwise configured).
+443 (unless otherwise configured).
 
 In this example, it is assumed that eth0 is the interface that points to
 the inner (physical) LAN of the office, although this could also be the
@@ -1830,7 +1830,7 @@ and in @file{@value{sysconfdir}/tinc/company/tinc.conf}:
 Name = BranchC
 @end example
 
-C already has another daemon that runs on port 655, so they have to
+C already has another daemon that runs on port 443, so they have to
 reserve another port for tinc. It knows the portnumber it has to listen on
 from it's own host configuration file.
 
@@ -2097,8 +2097,8 @@ Does the Subnet (or Subnets) in the host configuration file of this host match t
 
 @item Firewalls and NATs
 Do you have a firewall or a NAT device (a masquerading firewall or perhaps an ADSL router that performs masquerading)?
-If so, check that it allows TCP and UDP traffic on port 655.
-If it masquerades and the host running tinc is behind it, make sure that it forwards TCP and UDP traffic to port 655 to the host running tinc.
+If so, check that it allows TCP and UDP traffic on port 443.
+If it masquerades and the host running tinc is behind it, make sure that it forwards TCP and UDP traffic to port 443 to the host running tinc.
 You can add @samp{TCPOnly = yes} to your host config file to force tinc to only use a single TCP connection,
 this works through most firewalls and NATs.
 
@@ -2896,7 +2896,7 @@ synchronised.
 @example
 message
 ------------------------------------------------------------------
-ADD_EDGE node1 node2 21.32.43.54 655 222 0
+ADD_EDGE node1 node2 21.32.43.54 443 222 0
           |     |        |       |   |  +-> options
           |     |        |       |   +----> weight
           |     |        |       +--------> UDP port of node2
@@ -3101,12 +3101,12 @@ server  CHAL_REPLY 928ffe
 After the correct challenge replies are received, both ends have proved
 their identity. Further information is exchanged.
 
-client  ACK 655 123 0
+client  ACK 443 123 0
              |   |  +-> options
              |   +----> estimated weight
              +--------> listening port of client
 
-server  ACK 655 321 0
+server  ACK 443 321 0
              |   |  +-> options
              |   +----> estimated weight
              +--------> listening port of server

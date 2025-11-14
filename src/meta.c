@@ -46,6 +46,14 @@ bool send_meta_sptps(void *handle, uint8_t type, const void *buffer, size_t leng
 		abort();
 	}
 
+#ifdef HAVE_MSQUIC
+	/* Use QUIC if available (critical for SPTPS encrypted metadata) */
+	if(c->quic_context) {
+		return quic_send_meta(c, buffer, length);
+	}
+#endif
+
+	/* Fallback to TCP/UDP */
 	buffer_add(&c->outbuf, buffer, length);
 	io_set(&c->io, IO_READ | IO_WRITE);
 
@@ -113,6 +121,15 @@ void send_meta_raw(connection_t *c, const char *buffer, size_t length) {
 	logger(DEBUG_META, LOG_DEBUG, "Sending %lu bytes of raw metadata to %s (%s)", (unsigned long)length,
 	       c->name, c->hostname);
 
+#ifdef HAVE_MSQUIC
+	/* Use QUIC if available (critical for ID handshake which has id=0) */
+	if(c->quic_context) {
+		quic_send_meta(c, buffer, length);
+		return;
+	}
+#endif
+
+	/* Fallback to TCP/UDP */
 	buffer_add(&c->outbuf, buffer, length);
 
 	io_set(&c->io, IO_READ | IO_WRITE);

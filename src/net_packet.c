@@ -287,7 +287,7 @@ static length_t uncompress_packet(uint8_t *dest, const uint8_t *source, length_t
 
 /* VPN packet I/O */
 
-static void receive_packet(node_t *n, vpn_packet_t *packet) {
+void receive_packet(node_t *n, vpn_packet_t *packet) {
 	logger(DEBUG_TRAFFIC, LOG_DEBUG, "Received packet of %d bytes from %s (%s)",
 	       packet->len, n->name, n->hostname);
 

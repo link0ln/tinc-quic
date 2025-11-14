@@ -64,6 +64,8 @@ bool disablebuggypeers;
 char *scriptinterpreter;
 char *scriptextension;
 
+tmode_t transport_mode = TMODE_LEGACY;
+
 bool node_read_ecdsa_public_key(node_t *n) {
 	if(ecdsa_active(n->ecdsa)) {
 		return true;
@@ -571,6 +573,28 @@ bool setup_myself_reloadable(void) {
 		free(rmode);
 	}
 
+	char *tmode = NULL;
+	if(get_config_string(lookup_config(config_tree, "TransportMode"), &tmode)) {
+		if(!strcasecmp(tmode, "legacy")) {
+			transport_mode = TMODE_LEGACY;
+		} else if(!strcasecmp(tmode, "quic")) {
+#ifdef HAVE_MSQUIC
+			transport_mode = TMODE_QUIC;
+			logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC transport mode enabled");
+#else
+			logger(DEBUG_ALWAYS, LOG_ERR, "QUIC transport mode requested but not compiled with MsQuic support!");
+			free(tmode);
+			return false;
+#endif
+		} else {
+			logger(DEBUG_ALWAYS, LOG_ERR, "Invalid transport mode!");
+			free(tmode);
+			return false;
+		}
+
+		free(tmode);
+	}
+
 	if(get_config_string(lookup_config(config_tree, "Forwarding"), &fmode)) {
 		if(!strcasecmp(fmode, "off")) {
 			forwarding_mode = FMODE_OFF;
@@ -747,50 +771,56 @@ static bool add_listen_address(char *address, bool bindto) {
 		return false;
 	}
 
-	for(struct addrinfo *aip = ai; aip; aip = aip->ai_next) {
-		// Ignore duplicate addresses
-		bool found = false;
+	/* Skip traditional listener setup if using QUIC transport mode */
+	if(transport_mode != TMODE_QUIC) {
+		for(struct addrinfo *aip = ai; aip; aip = aip->ai_next) {
+			// Ignore duplicate addresses
+			bool found = false;
 
-		for(int i = 0; i < listen_sockets; i++)
-			if(!memcmp(&listen_socket[i].sa, aip->ai_addr, aip->ai_addrlen)) {
-				found = true;
-				break;
+			for(int i = 0; i < listen_sockets; i++)
+				if(!memcmp(&listen_socket[i].sa, aip->ai_addr, aip->ai_addrlen)) {
+					found = true;
+					break;
+				}
+
+			if(found) {
+				continue;
 			}
 
-		if(found) {
-			continue;
+			if(listen_sockets >= MAXSOCKETS) {
+				logger(DEBUG_ALWAYS, LOG_ERR, "Too many listening sockets");
+				freeaddrinfo(ai);
+				return false;
+			}
+
+			int tcp_fd = setup_listen_socket((sockaddr_t *) aip->ai_addr);
+
+			if(tcp_fd < 0) {
+				continue;
+			}
+
+			int udp_fd = setup_vpn_in_socket((sockaddr_t *) aip->ai_addr);
+
+			if(udp_fd < 0) {
+				close(tcp_fd);
+				continue;
+			}
+
+			io_add(&listen_socket[listen_sockets].tcp, handle_new_meta_connection, &listen_socket[listen_sockets], tcp_fd, IO_READ);
+			io_add(&listen_socket[listen_sockets].udp, handle_incoming_vpn_data, &listen_socket[listen_sockets], udp_fd, IO_READ);
+
+			if(debug_level >= DEBUG_CONNECTIONS) {
+				char *hostname = sockaddr2hostname((sockaddr_t *) aip->ai_addr);
+				logger(DEBUG_CONNECTIONS, LOG_NOTICE, "Listening on %s", hostname);
+				free(hostname);
+			}
+
+			listen_socket[listen_sockets].bindto = bindto;
+			memcpy(&listen_socket[listen_sockets].sa, aip->ai_addr, aip->ai_addrlen);
+			listen_sockets++;
 		}
-
-		if(listen_sockets >= MAXSOCKETS) {
-			logger(DEBUG_ALWAYS, LOG_ERR, "Too many listening sockets");
-			return false;
-		}
-
-		int tcp_fd = setup_listen_socket((sockaddr_t *) aip->ai_addr);
-
-		if(tcp_fd < 0) {
-			continue;
-		}
-
-		int udp_fd = setup_vpn_in_socket((sockaddr_t *) aip->ai_addr);
-
-		if(udp_fd < 0) {
-			close(tcp_fd);
-			continue;
-		}
-
-		io_add(&listen_socket[listen_sockets].tcp, handle_new_meta_connection, &listen_socket[listen_sockets], tcp_fd, IO_READ);
-		io_add(&listen_socket[listen_sockets].udp, handle_incoming_vpn_data, &listen_socket[listen_sockets], udp_fd, IO_READ);
-
-		if(debug_level >= DEBUG_CONNECTIONS) {
-			char *hostname = sockaddr2hostname((sockaddr_t *) aip->ai_addr);
-			logger(DEBUG_CONNECTIONS, LOG_NOTICE, "Listening on %s", hostname);
-			free(hostname);
-		}
-
-		listen_socket[listen_sockets].bindto = bindto;
-		memcpy(&listen_socket[listen_sockets].sa, aip->ai_addr, aip->ai_addrlen);
-		listen_sockets++;
+	} else {
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "Skipping traditional TCP/UDP listeners (QUIC transport mode)");
 	}
 
 	freeaddrinfo(ai);
@@ -842,7 +872,7 @@ static bool setup_myself(void) {
 	read_host_config(config_tree, name, true);
 
 	if(!get_config_string(lookup_config(config_tree, "Port"), &myport)) {
-		myport = xstrdup("655");
+		myport = xstrdup("443");
 	} else {
 		port_specified = true;
 	}
@@ -1160,14 +1190,15 @@ static bool setup_myself(void) {
 			}
 	}
 
-	if(!listen_sockets) {
+	/* Skip this check for QUIC mode - QUIC listener is created later in setup_network() */
+	if(!listen_sockets && transport_mode != TMODE_QUIC) {
 		logger(DEBUG_ALWAYS, LOG_ERR, "Unable to create any listening socket!");
 		return false;
 	}
 
 	/* If no Port option was specified, set myport to the port used by the first listening socket. */
 
-	if(!port_specified || atoi(myport) == 0) {
+	if((!port_specified || atoi(myport) == 0) && transport_mode != TMODE_QUIC) {
 		sockaddr_t sa;
 		socklen_t salen = sizeof(sa);
 
@@ -1176,9 +1207,15 @@ static bool setup_myself(void) {
 			sockaddr2str(&sa, NULL, &myport);
 
 			if(!myport) {
-				myport = xstrdup("655");
+				myport = xstrdup("443");
 			}
 		}
+	}
+
+	/* For QUIC mode, ensure myport is set to default if not specified */
+	if(transport_mode == TMODE_QUIC && (!myport || atoi(myport) == 0)) {
+		free(myport);
+		myport = xstrdup("443");
 	}
 
 	xasprintf(&myself->hostname, "MYSELF port %s", myport);
@@ -1249,25 +1286,27 @@ bool setup_network(void) {
 	}
 
 #ifdef HAVE_MSQUIC
-	/* Initialize QUIC */
-	uint16_t quic_port = 655; // Default tinc port
-	char *portstr = myport;
-	if(portstr) {
-		quic_port = atoi(portstr);
-	}
+	/* Initialize QUIC only if QUIC transport mode is enabled */
+	if(transport_mode == TMODE_QUIC) {
+		uint16_t quic_port = 443; // Default tinc port
+		char *portstr = myport;
+		if(portstr) {
+			quic_port = atoi(portstr);
+		}
 
-	if(!quic_init(quic_port)) {
-		logger(DEBUG_ALWAYS, LOG_ERR, "Failed to initialize QUIC");
-		return false;
-	}
+		if(!quic_init(quic_port)) {
+			logger(DEBUG_ALWAYS, LOG_ERR, "Failed to initialize QUIC");
+			return false;
+		}
 
-	if(!quic_start_listener(quic_port)) {
-		logger(DEBUG_ALWAYS, LOG_ERR, "Failed to start QUIC listener");
-		quic_cleanup();
-		return false;
-	}
+		if(!quic_start_listener(quic_port)) {
+			logger(DEBUG_ALWAYS, LOG_ERR, "Failed to start QUIC listener");
+			quic_cleanup();
+			return false;
+		}
 
-	logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC transport layer initialized");
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC transport layer initialized on port %d", quic_port);
+	}
 #endif
 
 	if(!init_control()) {

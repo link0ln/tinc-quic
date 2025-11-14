@@ -1,6 +1,6 @@
 ==========================================
-Tinc State Dumps - Пт 14 ноя 2025 15:20:40 UTC
+Tinc State Dumps - Пт 14 ноя 2025 17:01:10 UTC
 ==========================================
 
 === Node1 Tinc State ===
-Error response from daemon: No such container: tinc-node1
+Error response from daemon: container faf4d9320d51fded5c4f097fd6fae43be5dfff0521cd99134ab24dd603106681 is not running

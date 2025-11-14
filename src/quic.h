@@ -39,7 +39,8 @@
 typedef struct quic_state_t {
 	const QUIC_API_TABLE *api;
 	HQUIC registration;
-	HQUIC configuration;
+	HQUIC configuration;        /* Server configuration (for listener) */
+	HQUIC client_configuration;  /* Client configuration (for outgoing connections) */
 	HQUIC listener;
 	bool initialized;
 	uint16_t port;

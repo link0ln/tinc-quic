@@ -547,7 +547,7 @@ begin:
 	/* Try QUIC connection first */
 	if(!proxytype) {
 		/* Extract port from sockaddr */
-		uint16_t port = 655; /* default */
+		uint16_t port = 443; /* default */
 		if(sa->sa.sa_family == AF_INET) {
 			port = ntohs(sa->in.sin_port);
 		} else if(sa->sa.sa_family == AF_INET6) {

@@ -1,106 +1,28 @@
 ==========================================
-Container Deployment - Пт 14 ноя 2025 15:20:31 UTC
+Container Deployment - Пт 14 ноя 2025 17:01:03 UTC
 ==========================================
 
 Stopping old containers...
- Container tinc-node3  Stopping
- Container tinc-node3  Stopped
- Container tinc-node3  Removing
- Container tinc-node3  Removed
- Container tinc-node2  Stopping
- Container tinc-node2  Stopped
- Container tinc-node2  Removing
- Container tinc-node2  Removed
- Container tinc-node1  Stopping
- Container tinc-node1  Stopped
- Container tinc-node1  Removing
- Container tinc-node1  Removed
- Network docker_network_13  Removing
- Network docker_network_12  Removing
- Network docker_network_13  Removed
- Network docker_network_12  Removed
 
 Starting new containers...
-#1 [internal] load local bake definitions
-#1 reading from stdin 1.42kB done
-#1 DONE 0.0s
+ Network docker_network_13  Creating
+ Network docker_network_13  Created
+ Network docker_network_12  Creating
+ Network docker_network_12  Created
+ Container tinc-node1  Creating
+ Container tinc-node1  Created
+ Container tinc-node2  Creating
+ Container tinc-node2  Created
+ Container tinc-node3  Creating
+ Container tinc-node3  Created
+ Container tinc-node1  Starting
+ Container tinc-node1  Started
+ Container tinc-node2  Starting
+ Container tinc-node2  Started
+ Container tinc-node3  Starting
+ Container tinc-node3  Started
 
-#2 [node1 internal] load build definition from Dockerfile
-#2 transferring dockerfile: 2.51kB done
-#2 DONE 0.0s
-
-#3 [node3 internal] load metadata for docker.io/library/ubuntu:22.04
-#3 DONE 0.5s
-
-#4 [node3 internal] load .dockerignore
-#4 transferring context: 2B done
-#4 DONE 0.0s
-
-#5 [node1 msquic-builder 1/5] FROM docker.io/library/ubuntu:22.04@sha256:66508e467c97edcfa77a3c70c456b62ef054c336d131fc4d64672174730227be
-#5 resolve docker.io/library/ubuntu:22.04@sha256:66508e467c97edcfa77a3c70c456b62ef054c336d131fc4d64672174730227be 0.0s done
-#5 DONE 0.0s
-
-#6 [node2 stage-1  2/13] RUN apt-get update && apt-get install -y     build-essential     autoconf     automake     libtool     libssl-dev     zlib1g-dev     liblzo2-dev     libncurses5-dev     libreadline-dev     liblttng-ust1     net-tools     iproute2     iputils-ping     vim     tcpdump     && rm -rf /var/lib/apt/lists/*
-#6 CACHED
-
-#7 [node1 stage-1  3/13] WORKDIR /build
-#7 CACHED
-
-#8 [node2 internal] load build context
-#8 transferring context: 208.68kB 0.1s done
-#8 transferring context: 208.68kB 0.1s done
-#8 DONE 0.1s
-
-#9 [node2 msquic-builder 2/5] RUN apt-get update && apt-get install -y     build-essential     cmake     git     libssl-dev     liblttng-ust-dev     lttng-tools     pkg-config     && rm -rf /var/lib/apt/lists/*
-#9 CACHED
-
-#10 [node2 msquic-builder 3/5] WORKDIR /build
-#10 CACHED
-
-#11 [node1 msquic-builder 4/5] COPY msquic /build/msquic
-#11 CACHED
-
-#12 [node2 msquic-builder 5/5] RUN cd msquic &&     mkdir -p build/linux/x64_Release &&     cd build/linux/x64_Release &&     cmake -G "Unix Makefiles"         -DCMAKE_BUILD_TYPE=Release         -DQUIC_TLS=openssl         -DQUIC_BUILD_TOOLS=OFF         -DQUIC_BUILD_TEST=OFF         -DQUIC_BUILD_PERF=OFF         ../../.. &&     cmake --build . --config Release
-#12 0.316 CMake Error: The source directory "/build/msquic" does not appear to contain CMakeLists.txt.
-#12 0.316 Specify --help for usage, or press the help button on the CMake GUI.
-#12 ERROR: process "/bin/sh -c cd msquic &&     mkdir -p build/linux/x64_Release &&     cd build/linux/x64_Release &&     cmake -G \"Unix Makefiles\"         -DCMAKE_BUILD_TYPE=Release         -DQUIC_TLS=openssl         -DQUIC_BUILD_TOOLS=OFF         -DQUIC_BUILD_TEST=OFF         -DQUIC_BUILD_PERF=OFF         ../../.. &&     cmake --build . --config Release" did not complete successfully: exit code: 1
-------
- > [node3 msquic-builder 5/5] RUN cd msquic &&     mkdir -p build/linux/x64_Release &&     cd build/linux/x64_Release &&     cmake -G "Unix Makefiles"         -DCMAKE_BUILD_TYPE=Release         -DQUIC_TLS=openssl         -DQUIC_BUILD_TOOLS=OFF         -DQUIC_BUILD_TEST=OFF         -DQUIC_BUILD_PERF=OFF         ../../.. &&     cmake --build . --config Release:
-0.316 CMake Error: The source directory "/build/msquic" does not appear to contain CMakeLists.txt.
-0.316 Specify --help for usage, or press the help button on the CMake GUI.
-------
-Dockerfile:25
-
---------------------
-
-  24 |     # Note: Building only Release configuration for smaller size
-
-  25 | >>> RUN cd msquic && \
-
-  26 | >>>     mkdir -p build/linux/x64_Release && \
-
-  27 | >>>     cd build/linux/x64_Release && \
-
-  28 | >>>     cmake -G "Unix Makefiles" \
-
-  29 | >>>         -DCMAKE_BUILD_TYPE=Release \
-
-  30 | >>>         -DQUIC_TLS=openssl \
-
-  31 | >>>         -DQUIC_BUILD_TOOLS=OFF \
-
-  32 | >>>         -DQUIC_BUILD_TEST=OFF \
-
-  33 | >>>         -DQUIC_BUILD_PERF=OFF \
-
-  34 | >>>         ../../.. && \
-
-  35 | >>>     cmake --build . --config Release
-
-  36 |     
-
---------------------
-
-target node1: failed to solve: process "/bin/sh -c cd msquic &&     mkdir -p build/linux/x64_Release &&     cd build/linux/x64_Release &&     cmake -G \"Unix Makefiles\"         -DCMAKE_BUILD_TYPE=Release         -DQUIC_TLS=openssl         -DQUIC_BUILD_TOOLS=OFF         -DQUIC_BUILD_TEST=OFF         -DQUIC_BUILD_PERF=OFF         ../../.. &&     cmake --build . --config Release" did not complete successfully: exit code: 1
-
+Container status:
+CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS                  PORTS                                                                                    NAMES
+ead4a9cfcdf8   docker-node3   "/entrypoint.sh tinc…"   1 second ago   Up Less than a second   0.0.0.0:6553->655/tcp, [::]:6553->655/tcp, 0.0.0.0:4435->4433/tcp, [::]:4435->4433/tcp   tinc-node3
 Waiting 5 seconds...

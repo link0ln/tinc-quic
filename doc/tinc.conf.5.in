@@ -354,7 +354,7 @@ If no
 .Ar port
 is specified, the socket will listen on the port specified by the
 .Va Port
-option, or to port 655 if neither is given.
+option, or to port 443 if neither is given.
 To only listen on a specific port but not on a specific address, use
 .Li *
 for the
@@ -605,7 +605,7 @@ When this option is enabled, tinc will try to discover the path MTU to this node
 After the path MTU has been discovered, it will be enforced on the VPN.
 .It Va MTUInfoInterval Li = Ar seconds Pq 5
 The minimum amount of time between sending periodic updates about relay path MTU. Useful for quickly determining MTU to indirect nodes.
-.It Va Port Li = Ar port Pq 655
+.It Va Port Li = Ar port Pq 443
 The port number on which this tinc daemon is listening for incoming connections,
 which is used if no port number is specified in an
 .Va Address

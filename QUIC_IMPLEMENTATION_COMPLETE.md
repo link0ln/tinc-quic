@@ -390,7 +390,7 @@ Route to device
 
 ```
 QUIC transport layer initialized
-QUIC listener started on port 655
+QUIC listener started on port 443
 Trying to connect to node1 (192.168.1.100)
 Using QUIC connection to node1 (192.168.1.100)
 QUIC connection established to node1
@@ -466,7 +466,7 @@ Creating socket for 192.168.1.100 failed: ...
 ```ini
 # /etc/tinc/mynet/tinc.conf
 QuicEnabled = yes              # Enable/disable QUIC (default: yes)
-QuicPort = 655                 # QUIC port (default: same as Port)
+QuicPort = 443                 # QUIC port (default: same as Port)
 QuicIdleTimeout = 60000        # Idle timeout in ms (default: 60000)
 QuicDatagramEnabled = yes      # Use datagrams for VPN packets (default: yes)
 QuicMaxStreams = 100           # Max concurrent streams (default: 100)

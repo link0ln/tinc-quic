@@ -54,7 +54,6 @@ RUN apt-get update && apt-get install -y \
     libncurses5-dev \
     libreadline-dev \
     liblttng-ust1 \
-    texinfo \
     net-tools \
     iproute2 \
     iputils-ping \

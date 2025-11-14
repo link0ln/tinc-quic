@@ -1,21 +1,24 @@
-Saving Node1 full logs...
+Saving Node3 full logs...
 ==========================================
-Node1 Full Logs - Пт 14 ноя 2025 17:01:11 UTC
+Node3 Full Logs - Пт 14 ноя 2025 17:01:11 UTC
 ==========================================
 
 ================================================
-Starting Tinc Node: node1
+Starting Tinc Node: node3
 Network: testvpn
 QUIC Support: yes
 ================================================
 
 === Tinc Configuration ===
-# Node1 - Main VLESS+Reality+QUIC Server
-Name = node1
+# Node3 - VLESS+Reality+QUIC Client
+Name = node3
 Port = 443
 DeviceType = tun
 Interface = tinc0
 Mode = router
+
+# Connect to node1
+ConnectTo = node1
 
 # QUIC Transport (NEW!)
 TransportMode = quic
@@ -32,24 +35,22 @@ TransportMode = quic
 # VLESSRealityPrivateKey = 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 # VLESSRealityPublicKey = fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
 # VLESSRealityShortID = 0123456789abcdef
-# VLESSRealityFingerprint = chrome
+# VLESSRealityFingerprint = random
 
 # Network settings
 PingInterval = 10
 PingTimeout = 5
 AutoConnect = yes
 # TCPonly = yes  # Disabled for QUIC mode
-ConnectTo = node2
-ConnectTo = node3
 ==========================
 
 === Available Host Files ===
 total 20
 drwxr-xr-x 2 root root 4096 Nov 14 14:57 .
-drwxr-xr-x 6 root root 4096 Nov 14 14:57 ..
--rw-r--r-- 1 root root  480 Nov 14 14:57 node1
+drwxr-xr-x 3 root root 4096 Nov 14 14:57 ..
+-rw-r--r-- 1 root root  597 Nov 14 14:57 node1
 -rw-r--r-- 1 root root  597 Nov 14 14:57 node2
--rw-r--r-- 1 root root  597 Nov 14 14:57 node3
+-rw-r--r-- 1 root root  480 Nov 14 14:57 node3
 ============================
 
 TLS certificate already exists: /etc/tinc/testvpn/quic-cert.pem
@@ -77,5 +78,5 @@ QUIC transport layer shut down
 Executing script tinc-down
 RTNETLINK answers: No such process
 Error: ipv4: Address not found.
-Node1 VPN interface down
+Node3 VPN interface down
 Terminating

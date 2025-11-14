@@ -162,7 +162,7 @@ Guus Sliepen (54):
       Warn if we cannot reload the tincd when creating an invitation.
       Properly implement tinc.texi's dependency on tincinclude.texi.
       Prevent an infinite loop in get_recent_address().
-      Fix invitation tests if port 655 is available.
+      Fix invitation tests if port 443 is available.
       Add the ability to set a firewall mark on sockets.
       Reformat all code using astyle.
       Remove the wxPython GUI.
@@ -950,8 +950,8 @@ Guus Sliepen (56):
       Warn when incorrect use of add or set causes variables to be removed.
       Allow control-C to stop tincd without stopping the tinc shell.
       Don't forget the Port variable when creating an invitation URL.
-      Choose a different Port when 655 isn't available when doing "tinc init".
-      Choose a different Port when 655 isn't available when doing "tinc join".
+      Choose a different Port when 443 isn't available when doing "tinc init".
+      Choose a different Port when 443 isn't available when doing "tinc join".
       Make absolutely sure we can write config files before accepting an invitation.
       Defer handling netname conflicts when accepting an invitation.
       Use umask() to set file and UNIX socket permissions without race conditions.

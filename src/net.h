@@ -107,6 +107,11 @@ typedef enum packet_type_t {
 	PACKET_PROBE
 } packet_type_t;
 
+typedef enum tmode_t {
+	TMODE_LEGACY = 0,  /* Traditional TCP/UDP transport */
+	TMODE_QUIC,        /* QUIC transport only */
+} tmode_t;
+
 typedef struct listen_socket_t {
 	io_t tcp;
 	io_t udp;
@@ -153,6 +158,7 @@ extern char *myport;
 extern bool device_standby;
 extern bool autoconnect;
 extern bool disablebuggypeers;
+extern tmode_t transport_mode;
 extern int contradicting_add_edge;
 extern int contradicting_del_edge;
 extern time_t last_config_check;
@@ -189,6 +195,7 @@ extern int setup_vpn_in_socket(const sockaddr_t *sa);
 extern bool send_sptps_data(node_t *to, node_t *from, int type, const void *data, size_t len);
 extern bool receive_sptps_record(void *handle, uint8_t type, const void *data, uint16_t len);
 extern void send_packet(struct node_t *n, vpn_packet_t *packet);
+extern void receive_packet(struct node_t *n, vpn_packet_t *packet);
 extern void receive_tcppacket(struct connection_t *c, const char *buffer, size_t length);
 extern bool receive_tcppacket_sptps(struct connection_t *c, const char *buffer, size_t length);
 extern void broadcast_packet(const struct node_t *n, vpn_packet_t *packet);

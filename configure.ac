@@ -244,14 +244,46 @@ AC_ARG_WITH(msquic,
 )
 
 AS_IF([test "x$with_msquic" != "xno"],
-  [AC_MSG_CHECKING([for MsQuic])
-   MSQUIC_CFLAGS="-I\$(top_srcdir)/msquic/src/inc"
-   MSQUIC_LIBS="-L\$(top_builddir)/msquic/build/bin/Release -lmsquic"
-   AC_SUBST(MSQUIC_CFLAGS)
-   AC_SUBST(MSQUIC_LIBS)
-   AC_DEFINE(HAVE_MSQUIC, 1, [MsQuic support enabled])
-   AC_MSG_RESULT([yes])
-   msquic=true
+  [dnl Check if MsQuic is installed in system paths
+   msquic_found=no
+   save_LIBS="$LIBS"
+
+   dnl Try system-installed MsQuic first
+   AC_CHECK_HEADER([msquic.h],
+     [LIBS="-lmsquic $save_LIBS"
+      AC_MSG_CHECKING([for MsQuicOpen in -lmsquic])
+      AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM([[#include <msquic.h>]],
+                         [[MsQuicOpen(0);]])],
+        [AC_MSG_RESULT([yes])
+         MSQUIC_CFLAGS=""
+         MSQUIC_LIBS="-lmsquic"
+         msquic_found=yes],
+        [AC_MSG_RESULT([no])])
+     ],
+     [])
+
+   dnl Fall back to source tree if not found in system
+   AS_IF([test "x$msquic_found" = "xno"],
+     [AC_MSG_CHECKING([for MsQuic in source tree])
+      AS_IF([test -f "${srcdir}/msquic/src/inc/msquic.h"],
+       [AC_MSG_RESULT([yes])
+        MSQUIC_CFLAGS="-I\$(top_srcdir)/msquic/src/inc"
+        MSQUIC_LIBS="-L\$(top_builddir)/msquic/build/bin/Release -lmsquic"
+        msquic_found=yes],
+       [AC_MSG_RESULT([no])])
+     ])
+
+   LIBS="$save_LIBS"
+
+   AS_IF([test "x$msquic_found" = "xyes"],
+     [AC_SUBST(MSQUIC_CFLAGS)
+      AC_SUBST(MSQUIC_LIBS)
+      AC_DEFINE(HAVE_MSQUIC, 1, [MsQuic support enabled])
+      msquic=true
+     ],
+     [AC_MSG_ERROR([MsQuic library not found. Please install MsQuic or use --without-msquic])]
+   )
   ],
   [AC_MSG_ERROR([MsQuic is required for this version of tinc])]
 )

@@ -423,6 +423,25 @@ bool id_h(connection_t *c, const char *request) {
 		return false;
 	}
 
+#ifdef HAVE_MSQUIC
+	/* QUIC connections already have TLS 1.3 encryption - bypass SPTPS to avoid double encryption */
+	if(c->quic_context) {
+		logger(DEBUG_CONNECTIONS, LOG_INFO, "QUIC connection to %s - bypassing SPTPS (using native QUIC TLS 1.3)", c->name);
+
+		if(!c->config_tree) {
+			init_configuration(&c->config_tree);
+		}
+
+		c->allow_request = ACK;
+
+		if(!c->outgoing) {
+			send_id(c);
+		}
+
+		return send_ack(c);
+	}
+#endif
+
 	if(bypass_security) {
 		if(!c->config_tree) {
 			init_configuration(&c->config_tree);

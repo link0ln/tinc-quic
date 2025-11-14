@@ -338,7 +338,7 @@ make
 ```
 QUIC transport layer initialized
 [но далее все через TCP/UDP]
-Connection from 192.168.1.2:655 via TCP
+Connection from 192.168.1.2:443 via TCP
 Sending packet to node1 via UDP
 ```
 

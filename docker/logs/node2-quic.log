@@ -1,7 +1,21 @@
 Extracting Node2 QUIC logs...
 ==========================================
-Node2 QUIC Logs - Пт 14 ноя 2025 15:20:40 UTC
+Node2 QUIC Logs - Пт 14 ноя 2025 17:01:11 UTC
 ==========================================
 
 === QUIC Initialization & Handshake ===
-No QUIC logs found
+QUIC Support: yes
+# Node2 - VLESS+Reality+QUIC Client
+# QUIC Transport (NEW!)
+# VLESS Configuration (disabled for QUIC mode - QUIC provides encryption)
+# Reality Configuration (disabled for QUIC mode)
+# TCPonly = yes  # Disabled for QUIC mode
+=== QUIC Configuration ===
+=== MsQuic Library Info ===
+	libmsquic.so.2 (libc6,x86-64) => /lib/libmsquic.so.2
+	libmsquic.so (libc6,x86-64) => /lib/libmsquic.so
+MsQuic library loaded successfully
+Debug level: 5 (maximum verbosity for QUIC debugging)
+QUIC transport mode enabled
+Skipping traditional TCP/UDP listeners (QUIC transport mode)
+QUIC transport layer shut down

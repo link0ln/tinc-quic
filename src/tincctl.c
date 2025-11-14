@@ -2184,11 +2184,11 @@ static bool try_bind(int port) {
 }
 
 int check_port(const char *name) {
-	if(try_bind(655)) {
-		return 655;
+	if(try_bind(443)) {
+		return 443;
 	}
 
-	fprintf(stderr, "Warning: could not bind to port 655. ");
+	fprintf(stderr, "Warning: could not bind to port 443. ");
 
 	for(int i = 0; i < 100; i++) {
 		int port = 0x1000 + (rand() & 0x7fff);

@@ -39,7 +39,7 @@ echo "Configuring node1 (server)..."
 cat > "docker/node1/tinc/tinc.conf" <<EOF
 # Node1 - Main VLESS+Reality Server
 Name = node1
-Port = 655
+Port = 443
 DeviceType = tun
 Interface = tinc0
 Mode = router
@@ -90,7 +90,7 @@ echo "Configuring node2 (client)..."
 cat > "docker/node2/tinc/tinc.conf" <<EOF
 # Node2 - VLESS+Reality Client
 Name = node2
-Port = 655
+Port = 443
 DeviceType = tun
 Interface = tinc0
 Mode = router
@@ -144,7 +144,7 @@ echo "Configuring node3 (client)..."
 cat > "docker/node3/tinc/tinc.conf" <<EOF
 # Node3 - VLESS+Reality Client
 Name = node3
-Port = 655
+Port = 443
 DeviceType = tun
 Interface = tinc0
 Mode = router
@@ -199,21 +199,21 @@ echo "Creating placeholder host files..."
 # Node1 host file
 cat > "docker/node1/tinc/hosts/node1" <<EOF
 Address = 172.20.0.10
-Port = 655
+Port = 443
 Subnet = 10.0.0.1/32
 EOF
 
 # Node2 host file
 cat > "docker/node2/tinc/hosts/node2" <<EOF
 Address = 172.20.0.11
-Port = 655
+Port = 443
 Subnet = 10.0.0.2/32
 EOF
 
 # Node3 host file
 cat > "docker/node3/tinc/hosts/node3" <<EOF
 Address = 172.20.0.12
-Port = 655
+Port = 443
 Subnet = 10.0.0.3/32
 EOF
 

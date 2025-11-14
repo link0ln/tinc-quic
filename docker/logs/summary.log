@@ -1,7 +1,22 @@
 TINC-QUIC Test Summary
 ======================
-Started: Пт 14 ноя 2025 15:18:31 UTC
+Started: Пт 14 ноя 2025 16:56:04 UTC
 
 ✓ Build successful
 
 Connectivity Tests: 0/6 passed
+
+Test Duration: 307s
+Finished: Пт 14 ноя 2025 17:01:11 UTC
+
+Log Files:
+  - Build:         /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/build.log
+  - Deployment:    /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/deployment.log
+  - Network Info:  /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/network-info.log
+  - Connectivity:  /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/connectivity-tests.log
+  - Tinc State:    /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/tinc-state.log
+  - QUIC Logs:     /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/node1-quic.log, /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/node2-quic.log, /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/node3-quic.log
+  - Full Logs:     /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/node1-full.log, /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/node2-full.log, /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/node3-full.log
+  - Errors:        /opt/gitrepo/vpn-experiments/tinc-quic/docker/logs/errors.log
+
+Status: ✓ ALL TESTS PASSED

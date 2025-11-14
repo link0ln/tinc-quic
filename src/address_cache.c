@@ -163,7 +163,7 @@ const sockaddr_t *get_recent_address(address_cache_t *cache) {
 			*space = 0;
 		} else {
 			if(!get_config_string(lookup_config(cache->config_tree, "Port"), &port)) {
-				port = xstrdup("655");
+				port = xstrdup("443");
 			}
 		}
 

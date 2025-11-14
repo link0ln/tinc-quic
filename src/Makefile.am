@@ -267,9 +267,12 @@ sptps_speed_SOURCES += \
 endif
 endif
 
+## Initialize variables first
+tincd_LDADD =
+
 if MINIUPNPC
 tincd_SOURCES += upnp.h upnp.c
-tincd_LDADD = $(MINIUPNPC_LIBS)
+tincd_LDADD += $(MINIUPNPC_LIBS)
 tincd_LDFLAGS = -pthread
 endif
 
@@ -282,10 +285,11 @@ if TUNEMU
 LIBS += -lpcap
 endif
 
+## Define AM_CFLAGS before using +=
+AM_CFLAGS = -DCONFDIR=\"$(sysconfdir)\" -DRUNSTATEDIR=\"$(runstatedir)\" -DLOCALSTATEDIR=\"$(localstatedir)\" -DSBINDIR=\"$(sbindir)\" -iquote. $(CODE_COVERAGE_CFLAGS)
+AM_CPPFLAGS = $(CODE_COVERAGE_CPPFLAGS)
+
 if MSQUIC
 tincd_LDADD += @MSQUIC_LIBS@
 AM_CFLAGS += @MSQUIC_CFLAGS@
 endif
-
-AM_CFLAGS = -DCONFDIR=\"$(sysconfdir)\" -DRUNSTATEDIR=\"$(runstatedir)\" -DLOCALSTATEDIR=\"$(localstatedir)\" -DSBINDIR=\"$(sbindir)\" -iquote. $(CODE_COVERAGE_CFLAGS)
-AM_CPPFLAGS = $(CODE_COVERAGE_CPPFLAGS)
