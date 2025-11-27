@@ -1,0 +1,28 @@
+{
+  "nodes": {
+    "node1": {
+      "addresses": ["10.2.2.10", "10.2.3.10"],
+      "port": 443,
+      "subnet": "10.0.0.1/32",
+      "vpn_address": "10.0.0.1"
+    },
+    "node2": {
+      "addresses": ["10.2.2.11"],
+      "port": 443,
+      "subnet": "10.0.0.2/32",
+      "vpn_address": "10.0.0.2"
+    },
+    "node3": {
+      "addresses": ["10.2.3.12"],
+      "port": 443,
+      "subnet": "10.0.0.3/32",
+      "vpn_address": "10.0.0.3"
+    },
+    "testnode4": {
+      "addresses": ["10.2.2.14"],
+      "port": 443,
+      "subnet": "10.0.0.4/32",
+      "vpn_address": "10.0.0.4"
+    }
+  }
+}

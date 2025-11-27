@@ -1,0 +1,121 @@
+services:
+  node1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: tinc-node1
+    hostname: node1
+    networks:
+      networkA:
+        ipv4_address: 10.2.2.10
+      networkB:
+        ipv4_address: 10.2.3.10
+    volumes:
+      - ./node1/tinc:/etc/tinc/testvpn
+      - ./node1/logs:/var/log/tinc
+      - ./certbot:/etc/tinc/certs:ro
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      - NODE_NAME=node1
+      - TINC_NETWORK=testvpn
+      - QUIC_ENABLED=yes
+    ports:
+      - "4431:443" # QUIC port
+    stdin_open: true
+    tty: true
+
+  node2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: tinc-node2
+    hostname: node2
+    networks:
+      networkA:
+        ipv4_address: 10.2.2.11
+    volumes:
+      - ./node2/tinc:/etc/tinc/testvpn
+      - ./node2/logs:/var/log/tinc
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      - NODE_NAME=node2
+      - TINC_NETWORK=testvpn
+      - QUIC_ENABLED=yes
+    ports:
+      - "4432:443"
+    depends_on:
+      - node1
+    stdin_open: true
+    tty: true
+
+  node3:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: tinc-node3
+    hostname: node3
+    networks:
+      networkB:
+        ipv4_address: 10.2.3.12
+    volumes:
+      - ./node3/tinc:/etc/tinc/testvpn
+      - ./node3/logs:/var/log/tinc
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      - NODE_NAME=node3
+      - TINC_NETWORK=testvpn
+      - QUIC_ENABLED=yes
+    ports:
+      - "4433:443"
+    depends_on:
+      - node1
+    stdin_open: true
+    tty: true
+
+  node4:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: tinc-node4
+    hostname: node4
+    networks:
+      networkA:
+        ipv4_address: 10.2.2.13
+    volumes:
+      - ./node4/tinc:/etc/tinc/testvpn
+      - ./node4/logs:/var/log/tinc
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      - NODE_NAME=node4
+      - TINC_NETWORK=testvpn
+      - QUIC_ENABLED=yes
+    ports:
+      - "4434:443"
+    depends_on:
+      - node1
+    stdin_open: true
+    tty: true
+
+networks:
+  networkA:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.2.2.0/24
+  networkB:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.2.3.0/24
