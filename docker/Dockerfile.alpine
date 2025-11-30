@@ -1,0 +1,145 @@
+# ==============================================================================
+# Tinc-QUIC Alpine Multistage Build
+# ==============================================================================
+
+# Stage 1: Build MsQuic library
+FROM alpine:3.19 AS msquic-builder
+
+RUN apk add --no-cache \
+    build-base \
+    cmake \
+    git \
+    openssl-dev \
+    linux-headers \
+    perl \
+    ninja
+
+WORKDIR /build
+
+# Clone MsQuic
+RUN git clone --depth 1 --branch v2.4.3 https://github.com/microsoft/msquic.git && \
+    cd msquic && \
+    git submodule update --init --recursive --depth 1
+
+# Build MsQuic for Alpine (musl)
+RUN cd msquic && \
+    mkdir -p build && \
+    cd build && \
+    cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DQUIC_TLS=openssl \
+        -DQUIC_BUILD_TOOLS=OFF \
+        -DQUIC_BUILD_TEST=OFF \
+        -DQUIC_BUILD_PERF=OFF \
+        -DQUIC_ENABLE_LOGGING=OFF \
+        -DCMAKE_C_FLAGS="-fPIC" \
+        -DCMAKE_CXX_FLAGS="-fPIC" \
+        .. && \
+    ninja
+
+# ==============================================================================
+# Stage 2: Build tinc-quic
+# ==============================================================================
+FROM alpine:3.19 AS tinc-builder
+
+RUN apk add --no-cache \
+    build-base \
+    autoconf \
+    automake \
+    libtool \
+    texinfo \
+    linux-headers \
+    openssl-dev \
+    zlib-dev \
+    lzo-dev \
+    ncurses-dev \
+    readline-dev
+
+WORKDIR /build
+
+# Copy MsQuic artifacts
+COPY --from=msquic-builder /build/msquic/build/bin/Release/libmsquic.so* /usr/lib/
+COPY --from=msquic-builder /build/msquic/src/inc/msquic.h /usr/include/
+COPY --from=msquic-builder /build/msquic/src/inc/msquic_posix.h /usr/include/
+
+# Create symlinks for linker
+RUN cd /usr/lib && \
+    ln -sf libmsquic.so.2.4.3 libmsquic.so.2 && \
+    ln -sf libmsquic.so.2 libmsquic.so
+
+# Copy tinc source
+COPY . /build/tinc-quic
+
+WORKDIR /build/tinc-quic
+
+# Build tinc with MsQuic support
+RUN autoreconf -fsi && \
+    CFLAGS="-O2 -I/usr/include" \
+    LDFLAGS="-L/usr/lib" \
+    ./configure \
+        --prefix=/usr \
+        --sysconfdir=/etc \
+        --localstatedir=/var \
+        --with-openssl \
+        --with-msquic=/usr && \
+    make -j$(nproc) && \
+    make install DESTDIR=/install && \
+    strip /install/usr/sbin/tincd /install/usr/sbin/tinc && \
+    ls -lh /install/usr/sbin/
+
+# ==============================================================================
+# Stage 3: Minimal runtime image
+# ==============================================================================
+FROM alpine:3.19
+
+# Install runtime libraries and utilities
+RUN apk add --no-cache \
+    libssl3 \
+    libcrypto3 \
+    zlib \
+    lzo \
+    ncurses-libs \
+    readline \
+    libstdc++ \
+    # Network utilities (ifconfig, netstat)
+    net-tools \
+    # Modern network tools (ip, ss)
+    iproute2 \
+    # Firewall
+    iptables \
+    # Testing tools
+    iputils \
+    iperf3 \
+    bind-tools \
+    tcpdump \
+    # TLS utilities
+    openssl \
+    # Shell
+    bash
+
+# Copy MsQuic library
+COPY --from=msquic-builder /build/msquic/build/bin/Release/libmsquic.so* /usr/lib/
+RUN cd /usr/lib && \
+    ln -sf libmsquic.so.2.4.3 libmsquic.so.2 && \
+    ln -sf libmsquic.so.2 libmsquic.so
+
+# Copy tinc binaries
+COPY --from=tinc-builder /install/usr/sbin/tincd /usr/sbin/tincd
+COPY --from=tinc-builder /install/usr/sbin/tinc /usr/sbin/tinc
+
+# Create required directories
+RUN mkdir -p /etc/tinc /var/run/tinc /var/log/tinc
+
+# Copy entrypoint (Alpine-compatible)
+COPY docker/scripts/entrypoint-alpine.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Verify utilities work
+RUN echo "=== Verifying utilities ===" && \
+    ifconfig --version 2>&1 | head -1 || ifconfig lo && \
+    netstat --version 2>&1 | head -1 || netstat -i && \
+    /usr/sbin/tincd --version 2>&1 | head -1 && \
+    echo "=== All OK ==="
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["tincd", "-D", "-d0"]
